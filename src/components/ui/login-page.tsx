@@ -152,10 +152,10 @@ export function LoginPage() {
                 {/* Logo + Title */}
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col items-center mb-8">
                     <div
-                        className="w-20 h-20 rounded-full overflow-hidden mb-4"
-                        style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.25), 0 0 0 3px rgba(255,255,255,0.2)" }}
+                        className="w-20 h-20 rounded-full mb-4 flex items-center justify-center"
+                        style={{ background: "#ffffff", boxShadow: "0 12px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.4)", padding: "6px" }}
                     >
-                        <Image src="/logo.png" alt="Manas Resto" width={80} height={80} className="w-full h-full object-cover" priority />
+                        <Image src="/logo.png" alt="Manas Resto" width={68} height={68} className="w-full h-full object-contain rounded-full" priority />
                     </div>
                     <h1 className="text-2xl font-extrabold text-white tracking-tight">Manas Resto</h1>
                     <p className="text-white/50 text-xs mt-1 tracking-widest uppercase">Staff Management</p>

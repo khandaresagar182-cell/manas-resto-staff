@@ -26,17 +26,19 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-                    className="w-28 h-28 rounded-full overflow-hidden"
+                    className="w-28 h-28 rounded-full flex items-center justify-center"
                     style={{
-                        boxShadow: "0 20px 60px rgba(181,18,46,0.25), 0 0 0 4px rgba(181,18,46,0.1)",
+                        background: "#ffffff",
+                        boxShadow: "0 20px 60px rgba(181,18,46,0.3), 0 0 0 4px rgba(181,18,46,0.15)",
+                        padding: "8px",
                     }}
                 >
                     <Image
                         src="/logo.png"
                         alt="Manas Resto Logo"
-                        width={112}
-                        height={112}
-                        className="w-full h-full object-cover"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-contain rounded-full"
                         priority
                     />
                 </motion.div>
