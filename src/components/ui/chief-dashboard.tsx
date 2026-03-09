@@ -16,6 +16,7 @@ import {
 import { departmentColors, departmentBgColors } from "@/lib/mock-data";
 import { useDuty } from "@/lib/duty-context";
 import { useAuth } from "@/lib/auth-context";
+import { useAttendance } from "@/lib/attendance-context";
 import { useNotifications } from "@/lib/notification-context";
 import type { Staff, Shift } from "@/lib/types";
 
@@ -23,6 +24,9 @@ export function ChiefDashboard() {
     const { shifts, addShift, removeShift } = useDuty();
     const { addNotification } = useNotifications();
     const { allUsers } = useAuth();
+    const { records } = useAttendance();
+
+    const today = new Date().toISOString().split("T")[0];
 
     // Map Firestore users to Staff shape in real-time
     const staffMembers = allUsers.map((u) => ({
@@ -259,14 +263,30 @@ export function ChiefDashboard() {
                                 style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
                             >
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div
-                                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                                        style={{
-                                            background: "linear-gradient(135deg, #1B2A4A, #2D4A7A)",
-                                        }}
-                                    >
-                                        {staff.avatar}
-                                    </div>
+                                    {(() => {
+                                        const todayPhoto = records.find(r => r.staffId === staff.id && r.date === today);
+                                        return todayPhoto?.photoBase64 ? (
+                                            <div className="relative flex-shrink-0">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={todayPhoto.photoBase64}
+                                                    alt={staff.name}
+                                                    className="w-10 h-10 rounded-full object-cover"
+                                                    style={{ border: "2px solid #22c55e" }}
+                                                />
+                                                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                                style={{
+                                                    background: "linear-gradient(135deg, #1B2A4A, #2D4A7A)",
+                                                }}
+                                            >
+                                                {staff.avatar}
+                                            </div>
+                                        );
+                                    })()}
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-semibold text-sm text-gray-900 truncate">
                                             {staff.name}
