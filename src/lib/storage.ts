@@ -147,3 +147,22 @@ export function subscribeToAttendance(callback: (records: import("./types").Atte
     });
 }
 
+// ── Photo Compression (keeps photos small for Firestore) ─────
+
+export function compressPhoto(photoBase64: string, maxWidth = 320, quality = 0.3): Promise<string> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ratio = maxWidth / img.width;
+            canvas.width = maxWidth;
+            canvas.height = img.height * ratio;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = () => resolve(photoBase64); // fallback
+        img.src = photoBase64;
+    });
+}
+

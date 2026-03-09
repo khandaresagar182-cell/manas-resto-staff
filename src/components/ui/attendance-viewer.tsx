@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAttendance } from "@/lib/attendance-context";
 import { useAuth } from "@/lib/auth-context";
+import type { AttendanceRecord } from "@/lib/types";
 
 type ViewMode = "daily" | "monthly";
 
@@ -29,7 +30,7 @@ export function AttendanceViewer() {
         const n = new Date();
         return { year: n.getFullYear(), month: n.getMonth() }; // 0-indexed
     });
-    const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+    const [previewPhoto, setPreviewPhoto] = useState<AttendanceRecord | null>(null);
     const calendarRef = useRef<HTMLDivElement>(null);
 
     // 14-day strip
@@ -218,7 +219,7 @@ export function AttendanceViewer() {
                                             initial={{ opacity: 0, scale: 0.9 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             transition={{ delay: i * 0.07 }}
-                                            onClick={() => setPreviewPhoto(rec.photoBase64)}
+                                            onClick={() => setPreviewPhoto(rec)}
                                             className="relative rounded-2xl overflow-hidden text-left"
                                             style={{ aspectRatio: "3/4", boxShadow: "0 4px 16px rgba(0,0,0,0.12)" }}
                                         >
@@ -236,6 +237,10 @@ export function AttendanceViewer() {
                                                     <span className="text-white/70 text-[9px] truncate">{rec.locationLabel}</span>
                                                 </div>
                                             </div>
+                                            {/* Late badge */}
+                                            {rec.isLate && (
+                                                <span className="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">LATE</span>
+                                            )}
                                             {/* GPS badge */}
                                             {rec.latitude && (
                                                 <a
@@ -398,7 +403,12 @@ export function AttendanceViewer() {
                             className="w-full max-w-[380px] rounded-3xl overflow-hidden"
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={previewPhoto} alt="check-in" className="w-full" />
+                            <img src={previewPhoto.photoBase64} alt="check-in" className="w-full" />
+                            {previewPhoto.isLate && (
+                                <div className="w-full py-2 text-center text-xs font-bold text-amber-900" style={{ background: "#FDE68A" }}>
+                                    ⚠️ Late Check-In — Shift was at {previewPhoto.shiftStartTime}
+                                </div>
+                            )}
                             <button
                                 onClick={() => setPreviewPhoto(null)}
                                 className="w-full py-3 text-white font-semibold text-sm"

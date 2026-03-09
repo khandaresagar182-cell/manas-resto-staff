@@ -2,9 +2,11 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Camera, MapPin, CheckCircle, RefreshCw, Loader2, AlertCircle, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useAttendance } from "@/lib/attendance-context";
+import { useDuty } from "@/lib/duty-context";
+import { compressPhoto } from "@/lib/storage";
 import type { AttendanceRecord } from "@/lib/types";
 
 type Phase = "idle" | "camera" | "preview" | "saving" | "success" | "already";
@@ -12,6 +14,7 @@ type Phase = "idle" | "camera" | "preview" | "saving" | "success" | "already";
 export function AttendanceCheckin() {
     const { user } = useAuth();
     const { hasCheckedInToday, getTodayRecord, addRecord } = useAttendance();
+    const { getShiftsForStaff } = useDuty();
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -122,18 +125,42 @@ export function AttendanceCheckin() {
         setPhase("saving");
 
         const now = new Date();
+        const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+        // Check if late — compare with today's assigned shifts
+        const todayShifts = getShiftsForStaff(user.id).filter(s => s.date === today);
+        let isLate = false;
+        let shiftStartTime: string | undefined;
+        if (todayShifts.length > 0) {
+            const earliestShift = todayShifts.sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+            const [shiftH, shiftM] = earliestShift.startTime.split(":").map(Number);
+            const shiftStart = new Date(now);
+            shiftStart.setHours(shiftH, shiftM, 0, 0);
+            if (now > shiftStart) {
+                isLate = true;
+                shiftStartTime = earliestShift.startTime;
+            }
+        }
+
+        const recordId = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+        // Compress photo before saving (reduces ~200KB to ~15KB)
+        const compressedPhoto = await compressPhoto(capturedPhoto);
+
         const record: AttendanceRecord = {
-            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: recordId,
             staffId: user.id,
             staffName: user.name,
             staffAvatar: user.avatar,
             date: today,
-            time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+            time: timeStr,
             timestamp: now.toISOString(),
-            photoBase64: capturedPhoto,
+            photoBase64: compressedPhoto,
             latitude: gpsState.lat,
             longitude: gpsState.lng,
             locationLabel: gpsState.label || "Location not captured",
+            isLate,
+            shiftStartTime,
         };
 
         await addRecord(record);
@@ -142,7 +169,7 @@ export function AttendanceCheckin() {
         await new Promise((r) => setTimeout(r, 800));
         setPhase("success");
         setTimeout(() => setPhase("already"), 2500);
-    }, [user, today, capturedPhoto, gpsState, addRecord]);
+    }, [user, today, capturedPhoto, gpsState, addRecord, getShiftsForStaff]);
 
     const retake = useCallback(() => {
         setCapturedPhoto("");
@@ -377,6 +404,18 @@ export function AttendanceCheckin() {
                             animate={{ opacity: 1, y: 0 }}
                             className="flex flex-col gap-4"
                         >
+                            {todayRecord.isLate && (
+                                <div
+                                    className="flex items-center gap-2 px-4 py-3 rounded-2xl"
+                                    style={{ background: "linear-gradient(135deg, #FEF3C7, #FDE68A)", border: "1.5px solid #F59E0B" }}
+                                >
+                                    <Clock size={18} className="text-amber-600" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-amber-800">Late Check-In ⚠️</p>
+                                        <p className="text-xs text-amber-600">Shift started at {todayRecord.shiftStartTime}</p>
+                                    </div>
+                                </div>
+                            )}
                             <div
                                 className="flex items-center gap-2 px-4 py-3 rounded-2xl"
                                 style={{ background: "linear-gradient(135deg, #ECFDF5, #D1FAE5)", border: "1.5px solid #6EE7B7" }}
