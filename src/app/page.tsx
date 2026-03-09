@@ -8,6 +8,7 @@ import { DutyRosterApp } from "@/components/ui/duty-roster-app";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { DutyProvider } from "@/lib/duty-context";
 import { NotificationProvider } from "@/lib/notification-context";
+import { AttendanceProvider } from "@/lib/attendance-context";
 import { InstallBanner } from "@/components/ui/install-banner";
 
 type AppPhase = "splash" | "auth-check" | "login" | "app";
@@ -98,8 +99,10 @@ export default function Home() {
         <AuthProvider>
             <DutyProvider>
                 <NotificationProvider>
-                    <AppContent />
-                    <InstallBanner />
+                    <AttendanceProvider>
+                        <AppContent />
+                        <InstallBanner />
+                    </AttendanceProvider>
                 </NotificationProvider>
             </DutyProvider>
         </AuthProvider>

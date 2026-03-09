@@ -7,6 +7,8 @@ import { ChiefDashboard } from "./chief-dashboard";
 import { StaffDashboard } from "./staff-dashboard";
 import { NotificationCenter } from "./notification-center";
 import { ProfileScreen } from "./profile-screen";
+import { AttendanceCheckin } from "./attendance-checkin";
+import { AttendanceViewer } from "./attendance-viewer";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notification-context";
 
@@ -37,7 +39,7 @@ const pageVariants = {
     }),
 };
 
-const tabOrder = ["home", "schedule", "notifications", "profile"];
+const tabOrder = ["home", "schedule", "attendance", "notifications", "profile"];
 
 export function DutyRosterApp() {
     const { role } = useAuth();
@@ -56,10 +58,11 @@ export function DutyRosterApp() {
     const renderScreen = () => {
         switch (activeTab) {
             case "home":
-                // Chef sees the roster management dashboard; Staff sees their schedule
                 return role === "chef" ? <ChiefDashboard /> : <StaffDashboard />;
             case "schedule":
                 return <StaffDashboard />;
+            case "attendance":
+                return role === "chef" ? <AttendanceViewer /> : <AttendanceCheckin />;
             case "notifications":
                 return <NotificationCenter />;
             case "profile":

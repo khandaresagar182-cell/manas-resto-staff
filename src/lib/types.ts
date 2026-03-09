@@ -27,3 +27,17 @@ export interface Notification {
     type: "roster_published" | "shift_swap" | "schedule_change" | "reminder" | "shift_assigned" | "shift_removed";
     icon: string;
 }
+
+export interface AttendanceRecord {
+    id: string;
+    staffId: string;
+    staffName: string;
+    staffAvatar: string;
+    date: string;          // "YYYY-MM-DD"
+    time: string;          // "HH:MM"
+    timestamp: string;     // ISO string
+    photoBase64: string;   // data URL from camera canvas capture
+    latitude: number | null;
+    longitude: number | null;
+    locationLabel: string; // human-readable GPS label or fallback
+}

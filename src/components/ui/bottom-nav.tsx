@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Home, CalendarDays, Bell, User } from "lucide-react";
+import { Home, CalendarDays, Bell, User, Camera } from "lucide-react";
 
 interface BottomNavProps {
     activeTab: string;
@@ -12,7 +12,8 @@ interface BottomNavProps {
 
 const tabs = [
     { id: "home", label: "Home", icon: Home },
-    { id: "schedule", label: "My Schedule", icon: CalendarDays },
+    { id: "schedule", label: "Schedule", icon: CalendarDays },
+    { id: "attendance", label: "Check-In", icon: Camera },
     { id: "notifications", label: "Alerts", icon: Bell },
     { id: "profile", label: "Profile", icon: User },
 ];

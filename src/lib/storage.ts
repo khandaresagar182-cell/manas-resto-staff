@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
     SHIFTS: "manas_resto_shifts",
     STAFF_MEMBERS: "manas_resto_staff",
     NOTIFICATIONS: "manas_resto_notifications",
+    ATTENDANCE: "manas_resto_attendance",
 } as const;
 
 export function getStoredUsers(): StoredUser[] {
@@ -97,4 +98,21 @@ export interface StoredNotification {
     type: "shift_assigned" | "shift_removed" | "roster_published" | "shift_swap" | "schedule_change" | "reminder";
     icon: string;
     targetUserId?: string; // which user this notification is for
+}
+
+// ── Attendance ───────────────────────────────────────────────
+
+export function getStoredAttendance(): import("./types").AttendanceRecord[] {
+    if (typeof window === "undefined") return [];
+    try {
+        const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
+        return data ? JSON.parse(data) : [];
+    } catch {
+        return [];
+    }
+}
+
+export function saveStoredAttendance(records: import("./types").AttendanceRecord[]) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(records));
 }
