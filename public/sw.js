@@ -1,23 +1,25 @@
-const CACHE_NAME = "manas-resto-v1";
+// ── Manas Resto PWA — Lifetime Service Worker ─────────────────────────────
+//  Strategy:
+//    • Navigation (HTML)  → Network-first, cache fallback (always gets latest)
+//    • Next.js chunks/_next → Cache-first (content-hashed, safe forever)
+//    • Images / manifest   → Stale-while-revalidate (serve fast, refresh bg)
+//  Cache never expires on its own – entries survive until the app is updated.
+// ──────────────────────────────────────────────────────────────────────────
 
-// App shell files to cache for offline use
-const STATIC_ASSETS = [
-    "/",
-    "/manifest.json",
-    "/logo.png",
-];
+const CACHE_NAME = "manas-resto-v3";
+const STATIC_ASSETS = ["/", "/manifest.json", "/logo.png"];
 
-// ── Install: cache static assets ─────────────────────────────
+// ── Install ───────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches
             .open(CACHE_NAME)
             .then((cache) => cache.addAll(STATIC_ASSETS))
-            .then(() => self.skipWaiting())
+            .then(() => self.skipWaiting())          // activate immediately
     );
 });
 
-// ── Activate: clear old caches ────────────────────────────────
+// ── Activate ──────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches
@@ -25,77 +27,108 @@ self.addEventListener("activate", (event) => {
             .then((keys) =>
                 Promise.all(
                     keys
-                        .filter((key) => key !== CACHE_NAME)
-                        .map((key) => caches.delete(key))
+                        .filter((k) => k !== CACHE_NAME)
+                        .map((k) => caches.delete(k))
                 )
             )
-            .then(() => self.clients.claim())
+            .then(() => self.clients.claim())        // take control immediately
     );
 });
 
-// ── Fetch: Network-first with cache fallback ──────────────────
-self.addEventListener("fetch", (event) => {
-    // Skip non-GET and browser-extension requests
-    if (event.request.method !== "GET") return;
-    if (!event.request.url.startsWith("http")) return;
+// ── Helpers ───────────────────────────────────────────────────
+function isNextChunk(url) {
+    return url.includes("/_next/static/");
+}
 
-    // For navigation requests (HTML pages) — network first, cache fallback
-    if (event.request.mode === "navigate") {
+function isImage(url) {
+    return /\.(png|jpg|jpeg|gif|svg|webp|ico)(\?.*)?$/.test(url);
+}
+
+function isNavigate(request) {
+    return request.mode === "navigate";
+}
+
+// ── Fetch ─────────────────────────────────────────────────────
+self.addEventListener("fetch", (event) => {
+    if (event.request.method !== "GET") return;
+    const url = event.request.url;
+    if (!url.startsWith("http")) return;
+
+    // 1. Next.js content-hashed bundles → Cache-first (never stale)
+    if (isNextChunk(url)) {
         event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                    return response;
-                })
-                .catch(() => caches.match("/") || caches.match(event.request))
+            caches.match(event.request).then(
+                (cached) =>
+                    cached ||
+                    fetch(event.request).then((res) => {
+                        if (res.ok) {
+                            const clone = res.clone();
+                            caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+                        }
+                        return res;
+                    })
+            )
         );
         return;
     }
 
-    // For static assets — cache first, network fallback
-    event.respondWith(
-        caches.match(event.request).then((cached) => {
-            if (cached) return cached;
+    // 2. Images & manifest → Stale-while-revalidate (instant + refreshes bg)
+    if (isImage(url) || url.includes("/manifest")) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) =>
+                cache.match(event.request).then((cached) => {
+                    const network = fetch(event.request).then((res) => {
+                        if (res.ok) cache.put(event.request, res.clone());
+                        return res;
+                    });
+                    return cached || network;
+                })
+            )
+        );
+        return;
+    }
 
-            return fetch(event.request).then((response) => {
-                // Cache successful responses for Next.js chunks and assets
-                if (
-                    response.ok &&
-                    (event.request.url.includes("/_next/") ||
-                        event.request.url.includes("/logo") ||
-                        event.request.url.includes("/manifest"))
-                ) {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                }
-                return response;
-            });
-        })
+    // 3. Navigation (HTML pages) → Network-first, fallback to cached shell
+    if (isNavigate(event.request)) {
+        event.respondWith(
+            fetch(event.request)
+                .then((res) => {
+                    const clone = res.clone();
+                    caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+                    return res;
+                })
+                .catch(() => caches.match("/").then((c) => c || caches.match(event.request)))
+        );
+        return;
+    }
+
+    // 4. Everything else → Network with cache fallback
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
     );
 });
 
 // ── Push notifications ────────────────────────────────────────
 self.addEventListener("push", (event) => {
     const data = event.data ? event.data.json() : {};
-    const title = data.title || "Manas Resto";
-    const options = {
-        body: data.body || "You have a new notification",
-        icon: "/logo.png",
-        badge: "/logo.png",
-        tag: data.tag || "manas-notif",
-        data: { url: data.url || "/" },
-    };
-    event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil(
+        self.registration.showNotification(data.title || "Manas Resto", {
+            body: data.body || "You have a new notification",
+            icon: "/logo.png",
+            badge: "/logo.png",
+            tag: data.tag || "manas-notif",
+            data: { url: data.url || "/" },
+        })
+    );
 });
 
 // ── Notification click ────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     event.waitUntil(
-        clients.matchAll({ type: "window" }).then((windowClients) => {
-            for (const client of windowClients) {
-                if (client.url === "/" && "focus" in client) return client.focus();
+        clients.matchAll({ type: "window" }).then((list) => {
+            for (const c of list) {
+                if ("focus" in c) return c.focus();
             }
             if (clients.openWindow) return clients.openWindow("/");
         })

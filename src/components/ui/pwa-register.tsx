@@ -11,8 +11,9 @@ export function PWARegister() {
                     .then((reg) => {
                         console.log("[PWA] Service Worker registered:", reg.scope);
 
-                        // Check for updates every 60 seconds
-                        setInterval(() => reg.update(), 60_000);
+                        // Check for updates every 6 hours – keeps cache fresh
+                        // without hammering the server on low-connectivity devices
+                        setInterval(() => reg.update(), 6 * 60 * 60 * 1_000);
                     })
                     .catch((err) => {
                         console.warn("[PWA] Service Worker registration failed:", err);
