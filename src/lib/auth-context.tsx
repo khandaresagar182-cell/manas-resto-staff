@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Staff } from "./types";
 import {
-    getStoredUsers,
+    getStoredUsersAsync,
+    subscribeToUsers,
     getStoredSession,
     saveStoredSession,
     type StoredUser,
@@ -19,9 +20,10 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-    login: (staffId: string, role: UserRole) => void;
+    login: (staffId: string, role: UserRole) => Promise<void>;
     loginWithUser: (user: Staff, role: UserRole) => void;
     logout: () => void;
+    allUsers: StoredUser[]; // Expose real-time users list
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,28 +47,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: false,
         isLoading: true,
     });
+    const [allUsers, setAllUsers] = useState<StoredUser[]>([]);
+
+    // Subscribe to all users in real-time
+    useEffect(() => {
+        const unsubscribe = subscribeToUsers((users) => {
+            setAllUsers(users);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Restore session from localStorage on mount
     useEffect(() => {
-        const session = getStoredSession();
-        if (session) {
-            const users = getStoredUsers();
-            const storedUser = users.find((u) => u.id === session.userId);
-            if (storedUser) {
-                setAuthState({
-                    user: storedUserToStaff(storedUser),
-                    role: session.role,
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-                return;
+        const restoreSession = async () => {
+            const session = getStoredSession();
+            if (session) {
+                const users = await getStoredUsersAsync();
+                const storedUser = users.find((u) => u.id === session.userId);
+                if (storedUser) {
+                    setAuthState({
+                        user: storedUserToStaff(storedUser),
+                        role: session.role,
+                        isAuthenticated: true,
+                        isLoading: false,
+                    });
+                    return;
+                }
             }
-        }
-        setAuthState((prev) => ({ ...prev, isLoading: false }));
+            setAuthState((prev) => ({ ...prev, isLoading: false }));
+        };
+        restoreSession();
     }, []);
 
-    const login = useCallback((staffId: string, role: UserRole) => {
-        const users = getStoredUsers();
+    const login = useCallback(async (staffId: string, role: UserRole) => {
+        const users = await getStoredUsersAsync();
         const storedUser = users.find((u) => u.id === staffId);
         if (storedUser) {
             const user = storedUserToStaff(storedUser);
@@ -86,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ ...authState, login, loginWithUser, logout }}>
+        <AuthContext.Provider value={{ ...authState, login, loginWithUser, logout, allUsers }}>
             {children}
         </AuthContext.Provider>
     );

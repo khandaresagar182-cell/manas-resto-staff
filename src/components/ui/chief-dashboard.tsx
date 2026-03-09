@@ -15,30 +15,25 @@ import {
 } from "lucide-react";
 import { departmentColors, departmentBgColors } from "@/lib/mock-data";
 import { useDuty } from "@/lib/duty-context";
-import { getStoredUsers } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notification-context";
 import type { Staff, Shift } from "@/lib/types";
 
 export function ChiefDashboard() {
     const { shifts, addShift, removeShift } = useDuty();
     const { addNotification } = useNotifications();
+    const { allUsers } = useAuth();
 
-    // Load registered staff from localStorage
-    const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
-    useEffect(() => {
-        const users = getStoredUsers();
-        setStaffMembers(
-            users.map((u) => ({
-                id: u.id,
-                name: u.name,
-                role: u.staffRole,
-                department: u.department,
-                avatar: u.avatar,
-                email: u.email,
-                phone: u.phone,
-            }))
-        );
-    }, []);
+    // Map Firestore users to Staff shape in real-time
+    const staffMembers = allUsers.map((u) => ({
+        id: u.id,
+        name: u.name,
+        role: u.staffRole,
+        department: u.department,
+        avatar: u.avatar,
+        email: u.email,
+        phone: u.phone,
+    }));
 
     const [selectedDate, setSelectedDate] = useState(() => {
         return new Date().toISOString().split("T")[0];

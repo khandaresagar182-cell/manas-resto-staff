@@ -2,11 +2,11 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { AttendanceRecord } from "./types";
-import { getStoredAttendance, saveStoredAttendance } from "./storage";
+import { saveAttendanceRecordAsync, subscribeToAttendance } from "./storage";
 
 interface AttendanceContextType {
     records: AttendanceRecord[];
-    addRecord: (record: AttendanceRecord) => void;
+    addRecord: (record: AttendanceRecord) => Promise<void>;
     getRecordsForDate: (date: string) => AttendanceRecord[];
     getRecordsForStaff: (staffId: string) => AttendanceRecord[];
     hasCheckedInToday: (staffId: string) => boolean;
@@ -18,18 +18,22 @@ const AttendanceContext = createContext<AttendanceContextType | undefined>(undef
 export function AttendanceProvider({ children }: { children: React.ReactNode }) {
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
 
-    // Load from localStorage on mount
+    // Subscribe to attendance records in real-time
     useEffect(() => {
-        const stored = getStoredAttendance();
-        setRecords(stored);
+        const unsubscribe = subscribeToAttendance((newRecords) => {
+            // Sort records by timestamp descending (newest first)
+            const sortedRecords = [...newRecords].sort((a, b) => {
+                return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+            });
+            setRecords(sortedRecords);
+        });
+
+        return () => unsubscribe();
     }, []);
 
-    const addRecord = useCallback((record: AttendanceRecord) => {
-        setRecords((prev) => {
-            const updated = [record, ...prev];
-            saveStoredAttendance(updated);
-            return updated;
-        });
+    const addRecord = useCallback(async (record: AttendanceRecord) => {
+        // We write to Firestore. The real-time listener will instantly update our state.
+        await saveAttendanceRecordAsync(record);
     }, []);
 
     const getRecordsForDate = useCallback(

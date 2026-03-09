@@ -1,31 +1,48 @@
 "use client";
 
+import { collection, getDocs, setDoc, doc, onSnapshot } from "firebase/firestore";
+import { db } from "./firebase";
+
 // ── localStorage helpers for persistent data ──────────────────
 
 const STORAGE_KEYS = {
-    REGISTERED_USERS: "manas_resto_users",
     CURRENT_SESSION: "manas_resto_session",
     SHIFTS: "manas_resto_shifts",
-    STAFF_MEMBERS: "manas_resto_staff",
     NOTIFICATIONS: "manas_resto_notifications",
-    ATTENDANCE: "manas_resto_attendance",
 } as const;
 
-export function getStoredUsers(): StoredUser[] {
+// Read users from Firestore
+export async function getStoredUsersAsync(): Promise<StoredUser[]> {
     if (typeof window === "undefined") return [];
     try {
-        const data = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
-        return data ? JSON.parse(data) : [];
-    } catch {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        return querySnapshot.docs.map(doc => doc.data() as StoredUser);
+    } catch (e) {
+        console.error("Error reading users:", e);
         return [];
     }
 }
 
-export function saveStoredUsers(users: StoredUser[]) {
+// Write a single user to Firestore
+export async function saveUserAsync(user: StoredUser) {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+    try {
+        await setDoc(doc(db, "users", user.id), user);
+    } catch (e) {
+        console.error("Error saving user:", e);
+    }
 }
 
+// Listen for users in real-time
+export function subscribeToUsers(callback: (users: StoredUser[]) => void) {
+    if (typeof window === "undefined") return () => { };
+    return onSnapshot(collection(db, "users"), (snapshot) => {
+        const users = snapshot.docs.map(doc => doc.data() as StoredUser);
+        callback(users);
+    });
+}
+
+// Keep session in localStorage since it's device-specific
 export function getStoredSession(): StoredSession | null {
     if (typeof window === "undefined") return null;
     try {
@@ -102,17 +119,31 @@ export interface StoredNotification {
 
 // ── Attendance ───────────────────────────────────────────────
 
-export function getStoredAttendance(): import("./types").AttendanceRecord[] {
+export async function getStoredAttendanceAsync(): Promise<import("./types").AttendanceRecord[]> {
     if (typeof window === "undefined") return [];
     try {
-        const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-        return data ? JSON.parse(data) : [];
-    } catch {
+        const querySnapshot = await getDocs(collection(db, "attendance"));
+        return querySnapshot.docs.map(doc => doc.data() as import("./types").AttendanceRecord);
+    } catch (e) {
+        console.error("Error reading attendance:", e);
         return [];
     }
 }
 
-export function saveStoredAttendance(records: import("./types").AttendanceRecord[]) {
+export async function saveAttendanceRecordAsync(record: import("./types").AttendanceRecord) {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(records));
+    try {
+        await setDoc(doc(db, "attendance", record.id), record);
+    } catch (e) {
+        console.error("Error saving attendance:", e);
+    }
 }
+
+export function subscribeToAttendance(callback: (records: import("./types").AttendanceRecord[]) => void) {
+    if (typeof window === "undefined") return () => { };
+    return onSnapshot(collection(db, "attendance"), (snapshot) => {
+        const records = snapshot.docs.map(doc => doc.data() as import("./types").AttendanceRecord);
+        callback(records);
+    });
+}
+

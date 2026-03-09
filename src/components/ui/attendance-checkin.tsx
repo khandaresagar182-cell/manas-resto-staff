@@ -136,7 +136,7 @@ export function AttendanceCheckin() {
             locationLabel: gpsState.label || "Location not captured",
         };
 
-        addRecord(record);
+        await addRecord(record);
 
         // Short delay for save animation
         await new Promise((r) => setTimeout(r, 800));

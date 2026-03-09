@@ -19,8 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth, type UserRole } from "@/lib/auth-context";
 import {
-    getStoredUsers,
-    saveStoredUsers,
+    saveUserAsync,
     type StoredUser,
 } from "@/lib/storage";
 import type { Staff } from "@/lib/types";
@@ -37,7 +36,7 @@ const BRAND = {
 type LoginStep = "role-select" | "login" | "register";
 
 export function LoginPage() {
-    const { loginWithUser } = useAuth();
+    const { loginWithUser, allUsers } = useAuth();
     const [step, setStep] = useState<LoginStep>("role-select");
     const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
@@ -57,15 +56,14 @@ export function LoginPage() {
     const [showRegPin, setShowRegPin] = useState(false);
 
     const existingUsers = useMemo(() => {
-        const all = getStoredUsers();
-        if (!selectedRole) return all;
-        return all.filter((u) => u.role === selectedRole);
-    }, [selectedRole, step]);
+        if (!selectedRole) return allUsers;
+        return allUsers.filter((u) => u.role === selectedRole);
+    }, [selectedRole, step, allUsers]);
 
     const handleRoleSelect = (role: UserRole) => {
         setSelectedRole(role);
         setError("");
-        const users = getStoredUsers().filter((u) => u.role === role);
+        const users = allUsers.filter((u) => u.role === role);
         setStep(users.length > 0 ? "login" : "register");
     };
 
@@ -85,8 +83,7 @@ export function LoginPage() {
 
     const handleLogin = async () => {
         if (!selectedUserId) { setError("Please select your account"); return; }
-        const users = getStoredUsers();
-        const user = users.find((u) => u.id === selectedUserId);
+        const user = allUsers.find((u) => u.id === selectedUserId);
         if (!user) { setError("Account not found"); return; }
         if (pin !== user.pin) { setError("Incorrect PIN"); setPin(""); return; }
         setIsLoading(true);
@@ -100,7 +97,7 @@ export function LoginPage() {
         if (!regPin || regPin.length < 4) { setError("PIN must be 4 digits"); return; }
         if (regPin !== regConfirmPin) { setError("PINs do not match"); return; }
         setIsLoading(true);
-        await new Promise((r) => setTimeout(r, 600));
+
         const initials = regName.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
         const newUser: StoredUser = {
             id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -109,9 +106,12 @@ export function LoginPage() {
             department: regDept, avatar: initials || "U",
             email: regEmail.trim(), phone: regPhone.trim(),
         };
-        const users = getStoredUsers();
-        users.push(newUser);
-        saveStoredUsers(users);
+
+        // Save to Firestore
+        await saveUserAsync(newUser);
+
+        await new Promise((r) => setTimeout(r, 400)); // smooth transition
+
         const staffUser: Staff = { id: newUser.id, name: newUser.name, role: newUser.staffRole, department: newUser.department, avatar: newUser.avatar, email: newUser.email, phone: newUser.phone };
         loginWithUser(staffUser, selectedRole!);
     };

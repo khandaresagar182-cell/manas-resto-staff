@@ -14,7 +14,7 @@ import {
     Users,
 } from "lucide-react";
 import { useAttendance } from "@/lib/attendance-context";
-import { getStoredUsers } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 
 type ViewMode = "daily" | "monthly";
 
@@ -22,6 +22,7 @@ const ANNUAL_LEAVE_DAYS = 24;
 
 export function AttendanceViewer() {
     const { getRecordsForDate, records } = useAttendance();
+    const { allUsers } = useAuth();
     const [viewMode, setViewMode] = useState<ViewMode>("daily");
     const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
     const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -53,9 +54,8 @@ export function AttendanceViewer() {
 
     // ── Monthly Report ──────────────────────────────────────────────────
     const allStaff = useMemo(() => {
-        const users = getStoredUsers();
-        return users.map((u) => ({ id: u.id, name: u.name, avatar: u.avatar, department: u.department }));
-    }, []);
+        return allUsers.map((u) => ({ id: u.id, name: u.name, avatar: u.avatar, department: u.department }));
+    }, [allUsers]);
 
     const monthlyStats = useMemo(() => {
         const { year, month } = selectedMonth;
